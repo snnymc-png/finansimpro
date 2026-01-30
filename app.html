@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#3b82f6">
+    <title>Finansım Pro</title>
+    <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script>
+        // Tüm uygulama vanilla JavaScript ile
+        const root = document.getElementById('root');
+        
+        let activeTab = 'genel';
+        let transactions = [];
+        let cards = [];
+        
+        const sektorler = [
+            'Market', 'Akaryakıt', 'Restoran', 'Eğlence', 
+            'Faturalar', 'Sağlık', 'Ulaşım', 'Giyim', 'Diğer'
+        ];
+        
+        function calculateStats() {
+            const thisMonth = new Date().getMonth();
+            const thisYear = new Date().getFullYear();
+            
+            const monthlyTransactions = transactions.filter(t => {
+                const date = new Date(t.date);
+                return date.getMonth() === thisMonth && date.getFullYear() === thisYear;
+            });
+            
+            const income = monthlyTransactions
+                .filter(t => t.type === 'gelir')
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            
+            const expenses = monthlyTransactions
+                .filter(t => t.type === 'gider')
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            
+            const categoryExpenses = {};
+            monthlyTransactions
+                .filter(t => t.type === 'gider')
+                .forEach(t => {
+                    categoryExpenses[t.category] = (categoryExpenses[t.category] || 0) + parseFloat(t.amount);
+                });
+            
+            const topCategory = Object.entries(categoryExpenses)
+                .sort((a, b) => b[1] - a[1])[0];
+            
+            return {
+                income,
+                expenses,
+                balance: income - expenses,
+                topCategory: topCategory ? topCategory[0] : 'Yok',
+                topCategoryAmount: topCategory ? topCategory[1] : 0,
+                categoryExpenses
+            };
+        }
+        
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('tr-TR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+        }
+        
+        function render() {
+            const stats = calculateStats();
+            
+            root.innerHTML = `
+                <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+                    <div class="max-w-6xl mx-auto">
+                        <!-- Header -->
+                        <div class="bg-white rounded-2xl shadow-xl p-6 mb-6">
+                            <div class="flex items-center justify-between flex-wrap gap-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-xl">
+                                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h1 class="text-3xl font-bold text-gray-800">Finansım Pro</h1>
+                                        <p class="text-gray-500">Gelir & Gider Takibi</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm text-gray-500">Aylık Bakiye</p>
+                                    <p class="text-3xl font-bold ${stats.balance >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                        ₺${formatCurrency(stats.balance)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Stats Cards -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-white rounded-xl shadow-lg p-6">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-gray-600">Toplam Gelir</p>
+                                    <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                    </svg>
+                                </div>
+                                <p class="text-2xl font-bold text-green-600">₺${formatCurrency(stats.income)}</p>
+                            </div>
+                            
+                            <div class="bg-white rounded-xl shadow-lg p-6">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-gray-600">Toplam Gider</p>
+                                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                                    </svg>
+                                </div>
+                                <p class="text-2xl font-bold text-red-600">₺${formatCurrency(stats.expenses)}</p>
+                            </div>
+                            
+                            <div class="bg-white rounded-xl shadow-lg p-6">
+                                <div class="flex items-center justify-between mb-2">
+                                    <p class="text-gray-600">En Çok Harcanan</p>
+                                    <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path>
+                                    </svg>
+                                </div>
+                                <p class="text-lg font-bold text-gray-800">${stats.topCategory}</p>
+                                <p class="text-sm text-gray-500">₺${formatCurrency(stats.topCategoryAmount)}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Tabs -->
+                        <div class="bg-white rounded-xl shadow-lg mb-6">
+                            <div class="flex border-b">
+                                <button onclick="switchTab('genel')" class="flex-1 py-4 px-6 font-semibold transition-colors ${activeTab === 'genel' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}">
+                                    İşlemler
+                                </button>
+                                <button onclick="switchTab('kartlar')" class="flex-1 py-4 px-6 font-semibold transition-colors ${activeTab === 'kartlar' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}">
+                                    Kartlarım
+                                </button>
+                                <button onclick="switchTab('analiz')" class="flex-1 py-4 px-6 font-semibold transition-colors ${activeTab === 'analiz' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}">
+                                    Analiz
+                                </button>
+                            </div>
+                            
+                            <div class="p-6">
+                                <div id="tab-content"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            renderTabContent();
+        }
+        
+        function renderTabContent() {
+            const content = document.getElementById('tab-content');
+            const stats = calculateStats();
+            
+            if (activeTab === 'genel') {
+                content.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">Son İşlemler</h2>
+                            <button onclick="showAddTransactionModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                + Yeni İşlem
+                            </button>
+                        </div>
+                        
+                        ${transactions.length === 0 ? `
+                            <div class="text-center py-12 text-gray-500">
+                                <p>Henüz işlem bulunmuyor</p>
+                                <p class="text-sm mt-2">Yeni işlem ekleyerek başlayın</p>
+                            </div>
+                        ` : `
+                            <div class="space-y-3">
+                                ${transactions.map(t => `
+                                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-12 h-12 rounded-full flex items-center justify-center ${t.type === 'gelir' ? 'bg-green-100' : 'bg-red-100'}">
+                                                <svg class="w-6 h-6 ${t.type === 'gelir' ? 'text-green-600' : 'text-red-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${t.type === 'gelir' ? 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' : 'M13 17h8m0 0V9m0 8l-8-8-4 4-6-6'}"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p class="font-semibold text-gray-800">${t.category}</p>
+                                                <p class="text-sm text-gray-500">${t.description}</p>
+                                                <p class="text-xs text-gray-400">${new Date(t.date).toLocaleDateString('tr-TR')}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-4">
+                                            <p class="text-xl font-bold ${t.type === 'gelir' ? 'text-green-600' : 'text-red-600'}">
+                                                ${t.type === 'gelir' ? '+' : '-'}₺${formatCurrency(t.amount)}
+                                            </p>
+                                            <button onclick="deleteTransaction(${t.id})" class="text-red-500 hover:text-red-700">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+                `;
+            } else if (activeTab === 'kartlar') {
+                content.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">Kartlarım</h2>
+                            <button onclick="showAddCardModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                                + Yeni Kart
+                            </button>
+                        </div>
+                        
+                        ${cards.length === 0 ? `
+                            <div class="text-center py-12 text-gray-500">
+                                <p>Henüz kart bulunmuyor</p>
+                                <p class="text-sm mt-2">Yeni kart ekleyerek başlayın</p>
+                            </div>
+                        ` : `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                ${cards.map(card => {
+                                    const spending = transactions
+                                        .filter(t => t.type === 'gider' && t.cardId === card.id)
+                                        .reduce((sum, t) => sum + t.amount, 0);
+                                    const usagePercent = card.limit > 0 ? (spending / card.limit) * 100 : 0;
+                                    
+                                    return `
+                                        <div class="relative rounded-xl p-6 text-white shadow-xl" style="background-color: ${card.color}">
+                                            <button onclick="deleteCard(${card.id})" class="absolute top-4 right-4 bg-white/20 hover:bg-white/30 rounded-full p-2">
+                                                ❌
+                                            </button>
+                                            
+                                            <div class="flex items-center gap-2 mb-4">
+                                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path>
+                                                </svg>
+                                                <span class="font-semibold">${card.bank}</span>
+                                            </div>
+                                            
+                                            <p class="text-xl font-bold mb-1">${card.name}</p>
+                                            <p class="text-sm opacity-90 mb-4">**** **** **** ${card.lastFour}</p>
+                                            
+                                            <div class="bg-white/20 rounded-lg p-3">
+                                                <div class="flex justify-between text-sm mb-1">
+                                                    <span>Harcanan</span>
+                                                    <span>Limit</span>
+                                                </div>
+                                                <div class="flex justify-between font-bold mb-2">
+                                                    <span>₺${formatCurrency(spending)}</span>
+                                                    <span>₺${formatCurrency(card.limit)}</span>
+                                                </div>
+                                                <div class="bg-white/30 rounded-full h-2 overflow-hidden">
+                                                    <div class="bg-white h-full rounded-full transition-all" style="width: ${Math.min(usagePercent, 100)}%"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `}
+                    </div>
+                `;
+            } else if (activeTab === 'analiz') {
+                content.innerHTML = `
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-800 mb-6">Kategori Bazlı Harcamalar</h2>
+                        
+                        ${Object.keys(stats.categoryExpenses).length === 0 ? `
+                            <div class="text-center py-12 text-gray-500">
+                                <p>Henüz harcama verisi bulunmuyor</p>
+                            </div>
+                        ` : `
+                            <div class="space-y-4">
+                                ${Object.entries(stats.categoryExpenses)
+                                    .sort((a, b) => b[1] - a[1])
+                                    .map(([category, amount]) => {
+                                        const percentage = (amount / stats.expenses) * 100;
+                                        return `
+                                            <div class="bg-gray-50 rounded-lg p-4">
+                                                <div class="flex justify-between items-center mb-2">
+                                                    <span class="font-semibold text-gray-800">${category}</span>
+                                                    <div class="text-right">
+                                                        <p class="font-bold text-gray-800">₺${formatCurrency(amount)}</p>
+                                                        <p class="text-sm text-gray-500">%${percentage.toFixed(1)}</p>
+                                                    </div>
+                                                </div>
+                                                <div class="bg-gray-200 rounded-full h-3 overflow-hidden">
+                                                    <div class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all" style="width: ${percentage}%"></div>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                            </div>
+                        `}
+                    </div>
+                `;
+            }
+        }
+        
+        function switchTab(tab) {
+            activeTab = tab;
+            render();
+        }
+        
+        function showAddTransactionModal() {
+            const modal = document.createElement('div');
+            modal.id = 'modal';
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl max-w-md w-full p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-800">Yeni İşlem</h3>
+                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">İşlem Tipi</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="setTransactionType('gider')" id="btn-gider" class="py-3 rounded-lg font-semibold bg-red-600 text-white">Gider</button>
+                                <button onclick="setTransactionType('gelir')" id="btn-gelir" class="py-3 rounded-lg font-semibold bg-gray-100 text-gray-600">Gelir</button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tutar (₺)</label>
+                            <input type="number" id="amount" class="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="0.00" step="0.01">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Kategori</label>
+                            <select id="category" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                ${sektorler.map(s => `<option value="${s}">${s}</option>`).join('')}
+                            </select>
+                        </div>
+                        
+                        ${cards.length > 0 ? `
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Kart (Opsiyonel)</label>
+                                <select id="cardId" class="w-full px-4 py-3 border border-gray-300 rounded-lg">
+                                    <option value="">Kart Seçiniz</option>
+                                    ${cards.map(c => `<option value="${c.id}">${c.name} (*${c.lastFour})</option>`).join('')}
+                                </select>
+                            </div>
+                        ` : ''}
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Açıklama</label>
+                            <input type="text" id="description" class="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="İşlem açıklaması">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Tarih</label>
+                            <input type="date" id="date" class="w-full px-4 py-3 border border-gray-300 rounded-lg" value="${new Date().toISOString().split('T')[0]}">
+                        </div>
+                        
+                        <button onclick="addTransaction()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">
+                            İşlemi Kaydet
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        let transactionType = 'gider';
+        
+        function setTransactionType(type) {
+            transactionType = type;
+            document.getElementById('btn-gider').className = type === 'gider' 
+                ? 'py-3 rounded-lg font-semibold bg-red-600 text-white'
+                : 'py-3 rounded-lg font-semibold bg-gray-100 text-gray-600';
+            document.getElementById('btn-gelir').className = type === 'gelir'
+                ? 'py-3 rounded-lg font-semibold bg-green-600 text-white'
+                : 'py-3 rounded-lg font-semibold bg-gray-100 text-gray-600';
+        }
+        
+        function addTransaction() {
+            const amount = document.getElementById('amount').value;
+            const category = document.getElementById('category').value;
+            const description = document.getElementById('description').value;
+            const date = document.getElementById('date').value;
+            const cardId = document.getElementById('cardId')?.value || '';
+            
+            if (!amount || parseFloat(amount) <= 0) {
+                alert('Lütfen geçerli bir tutar giriniz');
+                return;
+            }
+            
+            transactions.unshift({
+                id: Date.now(),
+                type: transactionType,
+                amount: parseFloat(amount),
+                category,
+                description,
+                date,
+                cardId
+            });
+            
+            closeModal();
+            render();
+        }
+        
+        function showAddCardModal() {
+            const modal = document.createElement('div');
+            modal.id = 'modal';
+            modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50';
+            modal.innerHTML = `
+                <div class="bg-white rounded-2xl max-w-md w-full p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-gray-800">Yeni Kart</h3>
+                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl">×</button>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Kart Adı</label>
+                            <input type="text" id="cardName" class="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ör: Bonus Card">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Banka</label>
+                            <input type="text" id="cardBank" class="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="Ör: Garanti BBVA">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Son 4 Hane</label>
+                            <input type="text" id="cardLast" class="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="1234" maxlength="4">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Kart Limiti (₺)</label>
+                            <input type="number" id="cardLimit" class="w-full px-4 py-3 border border-gray-300 rounded-lg" placeholder="10000">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Kart Rengi</label>
+                            <div class="grid grid-cols-6 gap-2">
+                                ${['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'].map((color, i) => `
+                                    <button onclick="selectCardColor('${color}')" id="color-${i}" class="w-full h-12 rounded-lg ${i === 0 ? 'ring-4 ring-gray-400' : ''}" style="background-color: ${color}"></button>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <button onclick="addCard()" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">
+                            Kartı Kaydet
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        let selectedCardColor = '#3b82f6';
+        
+        function selectCardColor(color) {
+            selectedCardColor = color;
+            const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+            colors.forEach((c, i) => {
+                const btn = document.getElementById(`color-${i}`);
+                if (btn) {
+                    btn.className = c === color 
+                        ? 'w-full h-12 rounded-lg ring-4 ring-gray-400'
+                        : 'w-full h-12 rounded-lg';
+                }
+            });
+        }
+        
+        function addCard() {
+            const name = document.getElementById('cardName').value;
+            const bank = document.getElementById('cardBank').value;
+            const lastFour = document.getElementById('cardLast').value;
+            const limit = document.getElementById('cardLimit').value;
+            
+            if (!name || !lastFour) {
+                alert('Lütfen kart adı ve son 4 hane giriniz');
+                return;
+            }
+            
+            cards.push({
+                id: Date.now(),
+                name,
+                bank,
+                lastFour,
+                limit: parseFloat(limit) || 0,
+                color: selectedCardColor
+            });
+            
+            closeModal();
+            render();
+        }
+        
+        function deleteTransaction(id) {
+            if (confirm('Bu işlemi silmek istediğinize emin misiniz?')) {
+                transactions = transactions.filter(t => t.id !== id);
+                render();
+            }
+        }
+        
+        function deleteCard(id) {
+            if (confirm('Bu kartı silmek istediğinize emin misiniz?')) {
+                cards = cards.filter(c => c.id !== id);
+                render();
+            }
+        }
+        
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            if (modal) modal.remove();
+        }
+        
+        // İlk render
+        render();
+    </script>
+</body>
+</html>
