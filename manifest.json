@@ -2,20 +2,21 @@
   "name": "Finansım Pro",
   "short_name": "Finansım",
   "description": "Gelir ve Gider Takip Uygulaması",
-  "start_url": "/",
+  "start_url": "/finansimpro/app.html",
+  "scope": "/finansimpro/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3b82f6",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/finansimpro/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "/finansimpro/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
